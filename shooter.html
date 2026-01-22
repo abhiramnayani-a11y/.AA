@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Training Ground Shooter</title>
+<style>
+html, body { margin: 0; padding: 0; background:#0b0f14; color:#e6eef8; font-family: system-ui, Arial; }
+canvas { display:block; margin:0 auto; background: radial-gradient(1200px 800px at 50% 50%, #1a2330, #0b0f14); }
+
+#ui { position: fixed; top: 12px; left: 12px; background: rgba(15,20,30,.8); backdrop-filter: blur(5px); border-radius: 12px; padding: 10px 14px; font-size:14px; display:flex; flex-direction:column; gap:4px; color:#e6eef8; }
+#ui b { color:#8bd3ff; font-size:16px; }
+
+#center { position: fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+#crosshair { width:18px; height:18px; border:1px solid #9fe3ff; border-radius:50%; box-shadow:0 0 10px rgba(159,227,255,.6); }
+
+#footer { position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); opacity:.7; font-size:12px; }
+
+#menu { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:linear-gradient(180deg,#0b0f14,#020409); z-index:10; }
+#menuContent { background:rgba(15,20,30,.85); border-radius:16px; padding:24px 28px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+#menuContent h1 { margin:0 0 10px;color:#8bd3ff; }
+#menuContent p { opacity:.8; margin:0 0 16px; font-size:14px; }
+#menuContent button { padding:10px 20px; border-radius:12px; border:none; background:#122033; color:#8bd3ff; cursor:pointer; margin-top:10px; font-size:14px; }
+
+#pauseOverlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; flex-direction:column; color:#e6eef8; font-size:28px; display:none; z-index:20; gap:12px; }
+
+#levelOverlay { position:fixed; inset:0; background:rgba(0,0,0,.8); display:flex; align-items:center; justify-content:center; flex-direction:column; color:#e6eef8; font-size:28px; display:none; z-index:15; }
+</style>
+</head>
+<body>
+<div id="menu">
+  <div id="menuContent">
+    <h1>Training Ground Shooter</h1>
+    <p>Practice your aim and survive the waves of enemies!</p>
+    <button id="startBtn">Start Training</button>
+    <button id="howToBtn">How to Play</button>
+    <div id="howToText" style="display:none; margin-top:12px; text-align:left; font-size:14px; opacity:.85;">
+      <b>Controls:</b><br>
+      WASD: Move<br>
+      Mouse: Aim<br>
+      Left Click: Shoot<br>
+      P: Pause / Resume<br>
+      Reach score 500 to complete the level
+    </div>
+  </div>
+</div>
+
+<div id="pauseOverlay">
+  <div>Paused</div>
+  <button id="resumeBtn">Resume</button>
+  <button id="menuBtn">Back to Menu</button>
+</div>
+
+<div id="levelOverlay">
+  <div id="levelText">Level 1</div>
+  <button id="nextLevelBtn">Start Level</button>
+</div>
+
+<div id="ui">
+  <div><b>Training Ground Shooter</b></div>
+  <div>Level: <span id="levelUI">1</span></div>
+  <div>HP: <span id="hp">200</span> | Score: <span id="score">0</span></div>
+</div>
+
+<div id="center"><div id="crosshair"></div></div>
+<div id="footer">Smooth 2D physics • Simple UI • Practice accuracy</div>
+<canvas id="game" width="960" height="540"></canvas>
+
+<script>
+const canvas=document.getElementById('game');
+const ctx=canvas.getContext('2d');
+const hpEl=document.getElementById('hp');
+const scoreEl=document.getElementById('score');
+const levelUI=document.getElementById('levelUI');
+
+const menu=document.getElementById('menu');
+const startBtn=document.getElementById('startBtn');
+const howToBtn=document.getElementById('howToBtn');
+const howToText=document.getElementById('howToText');
+const pauseOverlay=document.getElementById('pauseOverlay');
+const resumeBtn=document.getElementById('resumeBtn');
+const menuBtn=document.getElementById('menuBtn');
+const levelOverlay=document.getElementById('levelOverlay');
+const levelText=document.getElementById('levelText');
+const nextLevelBtn=document.getElementById('nextLevelBtn');
+
+let gameStarted=false;
+let gamePaused=false;
+let level=1;
+
+const shootSound=new Audio('https://freesound.org/data/previews/320/320181_5260877-lq.mp3');
+const hitSound=new Audio('https://freesound.org/data/previews/341/341695_3248244-lq.mp3');
+const playerHitSound=new Audio('https://freesound.org/data/previews/341/341695_3248244-lq.mp3');
+
+startBtn.addEventListener('click',()=>startGame());
+howToBtn.addEventListener('click',()=>{howToText.style.display=howToText.style.display==='none'?'block':'none';});
+resumeBtn.addEventListener('click',()=>{gamePaused=false; pauseOverlay.style.display='none';});
+menuBtn.addEventListener('click',()=>{gamePaused=false; gameStarted=false; pauseOverlay.style.display='none'; menu.style.display='flex'; levelOverlay.style.display='none'; resetGame(); level=1; updateLevelUI();});
+nextLevelBtn.addEventListener('click',()=>{levelOverlay.style.display='none'; gamePaused=false; updateLevelUI();});
+
+function startGame(){gameStarted=true; gamePaused=false; menu.style.display='none'; showLevel();}
+function showLevel(){levelOverlay.style.display='flex'; levelText.textContent='Level '+level; resetGame(); setLevelSettings();}
+function setLevelSettings(){
+  if(level===1){player.speed=3.2; player.hp=200;}
+  if(level===2){player.speed=2.8; player.hp=350;}
+  if(level===3){player.speed=2.6; player.hp=500;}
+  updateLevelUI();
+}
+function updateLevelUI(){levelUI.textContent=level;}
+function resetGame(){player.hp=level===2?350:level===3?500:200; bullets=[]; enemies=[]; score=0; hpEl.textContent=player.hp; scoreEl.textContent=score;}
+
+const keys={};
+let mouse={x:canvas.width/2, y:canvas.height/2};
+window.addEventListener('keydown', e=>{keys[e.key.toLowerCase()]=true; if(e.key.toLowerCase()==='p'&&gameStarted){gamePaused=!gamePaused; pauseOverlay.style.display=gamePaused?'flex':'none';}});
+window.addEventListener('keyup', e=>keys[e.key.toLowerCase()]=false);
+canvas.addEventListener('mousemove', e=>{const r=canvas.getBoundingClientRect(); mouse.x=(e.clientX-r.left)*(canvas.width/r.width); mouse.y=(e.clientY-r.top)*(canvas.height/r.height);});
+
+const player={x:canvas.width/2,y:canvas.height/2,r:12,speed:3.2,hp:200,damage:30};
+let bullets=[];
+let enemies=[];
+let score=0;
+
+canvas.addEventListener('mousedown',()=>{if(!gamePaused){shoot(); shootSound.currentTime=0; shootSound.play();}});
+function shoot(){const ang=Math.atan2(mouse.y-player.y,mouse.x-player.x); bullets.push({x:player.x,y:player.y,vx:Math.cos(ang)*8,vy:Math.sin(ang)*8,life:90,damage:30});}
+
+function spawnEnemy(){if(!gameStarted||gamePaused)return;
+ const side=Math.floor(Math.random()*4); let x,y;
+ if(side===0){x=0;y=Math.random()*canvas.height;} if(side===1){x=canvas.width;y=Math.random()*canvas.height;} if(side===2){x=Math.random()*canvas.width;y=0;} if(side===3){x=Math.random()*canvas.width;y=canvas.height;}
+ let speed=1.0+Math.random()*0.8; let hp=50; let damage=20; let points=10;
+ if(level===2){speed+=0.5; hp=80; damage=50; points=15;}
+ if(level===3){speed+=0.8; hp=120; damage=70; points=20;}
+ enemies.push({x,y,r:14,speed,hp,damage,points});}
+setInterval(spawnEnemy,1200);
+
+function update(){if(!gameStarted||gamePaused)return;
+ if(keys['w'])player.y-=player.speed; if(keys['s'])player.y+=player.speed; if(keys['a'])player.x-=player.speed; if(keys['d'])player.x+=player.speed;
+ player.x=Math.max(player.r,Math.min(canvas.width-player.r,player.x)); player.y=Math.max(player.r,Math.min(canvas.height-player.r,player.y));
+ bullets.forEach(b=>{b.x+=b.vx;b.y+=b.vy;b.life--;}); bullets=bullets.filter(b=>b.life>0);
+ enemies.forEach(e=>{const a=Math.atan2(player.y-e.y,player.x-e.x); e.x+=Math.cos(a)*e.speed; e.y+=Math.sin(a)*e.speed;});
+ bullets.forEach(b=>{enemies.forEach(e=>{const d=Math.hypot(b.x-e.x,b.y-e.y); if(d<e.r){e.hp-=b.damage; b.life=0; hitSound.currentTime=0; hitSound.play();}});});
+ enemies=enemies.filter(e=>{if(e.hp<=0){score+=e.points; return false;} const d=Math.hypot(player.x-e.x,player.y-e.y); if(d<e.r+player.r){player.hp-=e.damage; playerHitSound.currentTime=0; playerHitSound.play();} return true;});
+ if(player.hp<=0){gamePaused=true; pauseOverlay.style.display='flex';}
+ if(score>=500){gamePaused=true; if(level<3){level++; showLevel();} else{alert('You beat the game!'); gameStarted=false; menu.style.display='flex';}} hpEl.textContent=Math.max(0,player.hp); scoreEl.textContent=score;}
+
+function draw(){if(!gameStarted)return;
+ ctx.clearRect(0,0,canvas.width,canvas.height);
+ ctx.strokeStyle='rgba(255,255,255,.05)'; for(let x=0;x<canvas.width;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+ for(let y=0;y<canvas.height;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+ ctx.fillStyle='#8bd3ff'; ctx.beginPath(); ctx.arc(player.x,player.y,player.r,0,Math.PI*2); ctx.fill();
+ ctx.strokeStyle='#cfefff'; ctx.beginPath(); ctx.moveTo(player.x,player.y); ctx.lineTo(mouse.x,mouse.y); ctx.stroke();
+ ctx.fillStyle='#fff'; bullets.forEach(b=>{ctx.fillRect(b.x-2,b.y-2,4,4);});
+ ctx.fillStyle='#ff6b6b'; enemies.forEach(e=>{ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,Math.PI*2);ctx.fill();});}
+
+function loop(){update(); draw(); requestAnimationFrame(loop);}
+loop();
+</script>
+</body>
+</html>

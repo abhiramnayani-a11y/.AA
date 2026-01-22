@@ -8,10 +8,27 @@
     canvas { background: #1a1a1a; display: block; margin: auto; }
     .ui { position: absolute; top: 10px; left: 10px; }
     .menu, .pause, .gameover, .win, .howto {
-      position: absolute; inset: 0; background: rgba(0,0,0,0.9);
-      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
     }
-    button { padding: 10px 20px; margin: 8px; font-size: 16px; cursor: pointer; }
+    button {
+      padding: 12px 28px;
+      margin: 10px;
+      font-size: 17px;
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      background: #00bcd4;
+      color: #000;
+      font-weight: bold;
+    }
+    button:hover { background: #26c6da; }
   </style>
 </head>
 <body>
@@ -42,7 +59,7 @@
   <p><b>Objective</b></p>
   <p>Defeat enemies and reach 500 score each level.</p>
   <p>Beat all 3 levels to win.</p>
-  <button onclick="backToMenu()">Back</button>
+  <button onclick="backFromHowTo()">Back</button>
 </div>
 
 <div class="pause" id="pause" style="display:none">
@@ -96,6 +113,11 @@ function resetLevel() {
 function showHowTo() {
   document.getElementById('menu').style.display = 'none';
   document.getElementById('howto').style.display = 'flex';
+}
+
+function backFromHowTo() {
+  document.getElementById('howto').style.display = 'none';
+  document.getElementById('menu').style.display = 'flex';
 }
 
 function backToMenu() {
